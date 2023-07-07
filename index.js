@@ -11,7 +11,8 @@ app.use(cors());
 let server=http.createServer(app);
 let io = new Server(server,{cors:{origin:"*"}});
 
-mongoose.connect("mongodb://localhost:27017/test").then(()=>{console.log("Database Connected")});
+mongoose.connect("mongodb://localhost:27017/test").then(()=>{
+    console.log("Database Connected")});
 
 
 let messagesSchema= new mongoose.Schema({
@@ -22,10 +23,22 @@ let credentialSchema= new mongoose.Schema({
     userName:String,
     password:String
 })
-
+let roomsSchema= new mongoose.Schema({
+    roomName:String,
+    roomNumber:Number
+})
+let rooms= new mongoose.model("roomsdata",roomsSchema);
 let messages = new mongoose.model("messagedb",messagesSchema);
 let accounts= new mongoose.model("credentials",credentialSchema);
 let userData={};
+let databases=[];
+let totalrooms=0;
+rooms.find().then(data=>{
+    data.forEach((element)=>{
+        databases.push(element.roomName)
+    })
+    console.log(databases)
+})
 //Sockets
 io.on("connection",(socket)=>{
     userData[socket.id]=socket.handshake.query.username;
@@ -60,7 +73,8 @@ app.post("/addMessage",(req,res)=>{
 })
 //Retrieve data from database
 app.get("/allMessage", (req,res)=>{
-    console.log("somebody asked")
+
+    console.log(req)
     messages.find({})
         .then((data)=>{
             res.json(data)

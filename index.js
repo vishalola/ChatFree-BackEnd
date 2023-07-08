@@ -11,7 +11,7 @@ app.use(cors());
 let server=http.createServer(app);
 let io = new Server(server,{cors:{origin:"*"}});
 
-mongoose.connect("mongodb://localhost:27017/test").then(()=>{
+mongoose.connect("mongodb+srv://root:root@cluster0.ptrwhf1.mongodb.net/ChatFree").then(()=>{
     console.log("Database Connected")});
 
 

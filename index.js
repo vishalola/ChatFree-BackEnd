@@ -1,4 +1,4 @@
-import Express  from "express";
+import Express, { query }  from "express";
 import mongoose from "mongoose";
 import cors from "cors";
 import {Server} from "socket.io";
@@ -25,24 +25,24 @@ let credentialSchema= new mongoose.Schema({
 })
 let roomsSchema= new mongoose.Schema({
     roomName:String,
-    roomNumber:Number
+})
+let privateMessageSchema= new mongoose.Schema({
+    from:String,
+    to:String,
+    message:String
 })
 let rooms= new mongoose.model("roomsdata",roomsSchema);
 let messages = new mongoose.model("messagedb",messagesSchema);
 let accounts= new mongoose.model("credentials",credentialSchema);
+let privateMessages= new mongoose.model("privatemessagedb",privateMessageSchema);
 let userData={};
+let userDataByUserName={};
 let databases=[];
-let totalrooms=0;
-rooms.find().then(data=>{
-    data.forEach((element)=>{
-        databases.push(element.roomName)
-    })
-    console.log(databases)
-})
 //Sockets
 io.on("connection",(socket)=>{
     userData[socket.id]=socket.handshake.query.username;
-    console.log(socket.handshake.query.username)
+    userDataByUserName[socket.handshake.query.username]=socket.id;
+    // console.log(socket.handshake.query.username)
     socket.on("message-sent",message=>{
         console.log("message broadcasted "+message)
         messages.create({userName:userData[socket.id],message:message})
@@ -53,6 +53,21 @@ io.on("connection",(socket)=>{
     })
     socket.on('disconnect',()=>{
         delete userData[socket.id];
+    })
+    socket.on('private-message',data=>{
+        let fromUser=data.from;
+        let toUser=data.to;
+        let msg=data.message;
+        privateMessages.create({from:fromUser,to:toUser,message:msg});
+        io.to(userDataByUserName[fromUser]).emit('new-private-message',{
+             "from":fromUser,
+             "message":msg
+        })
+        io.to(userDataByUserName[toUser]).emit('new-private-message',{
+            "from":fromUser,
+            "message":msg
+       })
+
     })
 })
 
@@ -80,6 +95,33 @@ app.get("/allMessage", (req,res)=>{
             res.json(data)
         })
         .catch(e=>console.log(e))
+})
+app.get("/allPrivateMessage",(req,res)=>{
+    let user1=req.query.user1;
+    let user2=req.query.user2;
+
+    let query={
+        $or:[
+            { from: user1, to: user2 },
+            { from: user2, to: user1 }
+        ]
+    }
+    privateMessages.find(query).then(data=>{
+        res.json(data);
+    }).catch(e=>console.log(e))
+
+})
+app.get("/getChats",(req,res)=>{
+    let user1=req.query.user1;
+    let query={
+        $or:[
+            { from: user1},
+            { to: user1 }
+        ]
+    }
+    privateMessages.find(query).then(data=>{
+        res.json(data);
+    }).catch(e=>console.log(e))
 })
 //Check user-exists or not:
 app.post('/login',(req,res)=>{
@@ -123,6 +165,24 @@ app.post("/signup",async (req,res)=>{
             res.sendStatus(500); //Internal Error;
         })
     }
+})
+
+app.post("/findUser",(req,res)=>{
+    let user=req.body.user;
+    accounts.find({userName:user}).then(data=>{
+        if(data.length!=0)
+        res.send(true);
+        else
+        res.send(false);
+    }).catch(e=>console.log(e))
+})
+
+app.post("/createChat",(req,res)=>{
+    let user1=req.body.user1;
+    let user2=req.body.user2;
+    privateMessages.create({from:user1,to:user2,message:""}).then(()=>{
+        res.sendStatus(200);
+    }).catch(e=>console.log(e))
 })
 
 server.listen(80,()=>{

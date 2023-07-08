@@ -3,8 +3,6 @@ import mongoose from "mongoose";
 import cors from "cors";
 import {Server} from "socket.io";
 import http from "http";
-import { SocketAddress } from "net";
-import { connect } from "http2";
 let app=Express();
 app.use(Express.json());
 app.use(cors());
